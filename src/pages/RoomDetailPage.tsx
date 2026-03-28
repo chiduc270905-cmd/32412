@@ -1,29 +1,41 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Star, MapPin, CheckCircle2, Share, Heart, ShieldCheck, Wifi, Coffee, Wind, Car } from "lucide-react";
 import { cn } from "../lib/utils";
+import { ROOMS } from "../constants";
 
 export default function RoomDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Mock data based on ID
+  // Find room from constants
+  const roomData = ROOMS.find(r => r.id === Number(id));
+
+  if (!roomData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Room not found</h1>
+          <button 
+            onClick={() => navigate("/")}
+            className="text-primary font-bold underline"
+          >
+            Go back to home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Merge with default mock data for missing fields
   const room = {
-    id,
-    name: "Skyloft Studio",
-    price: "3.500.000đ",
-    location: "District 1, Ho Chi Minh City",
-    distance: "0.8 km to campus",
-    rating: 4.9,
+    ...roomData,
     reviews: 128,
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCjM-qEBlh7bcsPAVADqk_Iz4JtQRWFRvhODRbV-c-GNsqGHTOuALsl9rqUOIZN_vUmeEUnOJ3kKamQESMOEU24WLyV-htyn9zCTFsel96Xh6bAX2Ozt8dIGU73EAwXraBKkIR1lO4f9SpohuEaTZJL67wBLZMS9XQH8ZPDfq0UqKPsZV0iPGSW8L6Uvc6ANouhnj0B4q5PZkqV3dtSWeqIcDBF6h-_kolSYBgvdxG_EMvbWXrkrJYZBqvQ_bVYnmywjdOrKhCmeoCu",
-    verified: true,
     host: {
       name: "Sarah Nguyen",
       image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCuTRb4D1-O_u9jwzpfzQyZ7bNvwHci1DLxKNfwz4dowdXdCP_PwC20RqihkSA2EdwJwdPCwYDDhSA6U5BuMVXn5bDRQQoxwWVPrbkjRtVsxxYDpJqujWnczWEUuUIs1WQWci-eMbKpZVE-VNFsX8Qq5c8iWNyyCQVdhvajFqm50R-17balgRq9Z_-hA5hNiWOljCQYmilh3cR1qeBXMAFMDc0WaTDKffTG3aF0MZtP_6sARezANbBoDbjSt55IglezX0a-SqMky3KH",
       joined: "2021",
       responseRate: "98%"
     },
-    description: "Experience urban living at its finest in this sun-drenched studio loft. Featuring floor-to-ceiling windows, polished concrete floors, and a minimalist design aesthetic. Perfect for students or young professionals looking for a quiet, inspiring space close to the city center.",
     amenities: [
       { icon: Wifi, label: "High-Speed WiFi" },
       { icon: Wind, label: "Air Conditioning" },
