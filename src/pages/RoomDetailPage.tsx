@@ -56,9 +56,8 @@ export default function RoomDetailPage() {
     setSummaryError(null);
     
     try {
-      const ai = new GoogleGenAI({ 
+      const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,
-        fetch: window.fetch.bind(window)
       });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
