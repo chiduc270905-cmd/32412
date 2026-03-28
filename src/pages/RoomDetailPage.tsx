@@ -1,11 +1,16 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, CheckCircle2, Share, Heart, ShieldCheck, Wifi, Coffee, Wind, Car } from "lucide-react";
+import { ArrowLeft, Star, MapPin, CheckCircle2, Share, Heart, ShieldCheck, Wifi, Coffee, Wind, Car, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ROOMS } from "../constants";
+import { useState, useEffect } from "react";
+import { GoogleGenAI } from "@google/genai";
 
 export default function RoomDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [smartSummary, setSmartSummary] = useState<string | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Find room from constants
   const roomData = ROOMS.find(r => r.id === Number(id));
@@ -44,8 +49,66 @@ export default function RoomDetailPage() {
     ]
   };
 
+  const generateSmartSummary = async () => {
+    if (smartSummary) return;
+    
+    setIsLoadingSummary(true);
+    setSummaryError(null);
+    
+    try {
+      const ai = new GoogleGenAI({ 
+        apiKey: process.env.GEMINI_API_KEY,
+        fetch: window.fetch.bind(window)
+      });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate a catchy, persuasive 2-sentence summary for this room: ${room.name}. Location: ${room.location}. Description: ${room.description}. Price: ${room.price}. Amenities: ${room.amenities.map(a => a.label).join(", ")}.`,
+        config: {
+          systemInstruction: "You are a professional real estate copywriter. Keep it concise and exciting.",
+        }
+      });
+      
+      if (response.text) {
+        setSmartSummary(response.text);
+      } else {
+        throw new Error("No summary generated");
+      }
+    } catch (err) {
+      console.error("Error generating summary:", err);
+      setSummaryError("Could not generate summary at this time.");
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
+
+  useEffect(() => {
+    // Optionally auto-generate on load, or let user trigger it
+    // generateSmartSummary();
+  }, []);
+
+  const [isBooked, setIsBooked] = useState(false);
+
+  const handleBook = () => {
+    setIsBooked(true);
+    setTimeout(() => setIsBooked(false), 3000);
+  };
+
   return (
     <div className="min-h-screen bg-surface pb-24 relative">
+      {/* Success Toast */}
+      {isBooked && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-secondary text-on-secondary p-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/20 backdrop-blur-md">
+            <div className="bg-white/20 rounded-full p-2">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold">Booking Request Sent!</p>
+              <p className="text-xs opacity-90">The host will review your request shortly.</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Hero Image & Top Actions */}
       <div className="relative h-[45vh] w-full">
         <img 
@@ -127,7 +190,40 @@ export default function RoomDetailPage() {
 
         {/* Description */}
         <section className="mb-8">
-          <h2 className="font-headline text-xl font-bold mb-3">About this space</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-headline text-xl font-bold">About this space</h2>
+            <button 
+              onClick={generateSmartSummary}
+              disabled={isLoadingSummary}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors disabled:opacity-50"
+            >
+              {isLoadingSummary ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              AI Summary
+            </button>
+          </div>
+
+          {smartSummary && (
+            <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-2 opacity-20">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-sm italic text-on-surface leading-relaxed relative z-10">
+                "{smartSummary}"
+              </p>
+            </div>
+          )}
+
+          {summaryError && (
+            <div className="mb-4 p-3 rounded-xl bg-error/5 border border-error/10 flex items-center gap-2 text-error text-xs font-medium">
+              <AlertCircle className="w-4 h-4" />
+              <span>{summaryError}</span>
+            </div>
+          )}
+
           <p className="text-on-surface-variant leading-relaxed text-sm">
             {room.description}
           </p>
@@ -168,8 +264,17 @@ export default function RoomDetailPage() {
           <span className="font-headline font-black text-xl text-primary">{room.price}</span>
           <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Available Now</span>
         </div>
-        <button className="bg-primary text-on-primary px-8 py-3.5 rounded-full font-bold shadow-lg hover:scale-105 active:scale-95 transition-all">
-          Request to Book
+        <button 
+          onClick={handleBook}
+          disabled={isBooked}
+          className={cn(
+            "px-8 py-3.5 rounded-full font-bold shadow-lg transition-all",
+            isBooked 
+              ? "bg-secondary text-on-secondary opacity-80 cursor-default" 
+              : "bg-primary text-on-primary hover:scale-105 active:scale-95"
+          )}
+        >
+          {isBooked ? "Request Sent" : "Request to Book"}
         </button>
       </div>
     </div>

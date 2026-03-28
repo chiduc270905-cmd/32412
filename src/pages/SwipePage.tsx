@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useMotionValue, useTransform, PanInfo } from "motion/react";
+import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from "motion/react";
 import { X, Heart, Zap, MapPin, CheckCircle2, Star, Info } from "lucide-react";
 import TopBar from "../components/TopBar";
 import { ROOMS } from "../constants";
@@ -33,41 +33,56 @@ export default function SwipePage() {
           </div>
         ) : (
           <div className="relative w-full max-w-md aspect-[3/4] max-h-[600px]">
-            {cards.map((room, index) => {
-              const isFront = index === activeIndex;
-              if (!isFront) return null;
-              return (
-                <SwipeCard
-                  key={room.id}
-                  room={room}
-                  isFront={isFront}
-                  onRemove={(action) => removeCard(room.id, action)}
-                  index={index}
-                  total={cards.length}
-                />
-              );
-            })}
+            <AnimatePresence>
+              {cards.map((room, index) => {
+                const isFront = index === activeIndex;
+                const isSecond = index === activeIndex - 1;
+                const isThird = index === activeIndex - 2;
+                
+                if (!isFront && !isSecond && !isThird) return null;
+                
+                return (
+                  <SwipeCard
+                    key={room.id}
+                    room={room}
+                    isFront={isFront}
+                    onRemove={(action) => removeCard(room.id, action)}
+                    index={index}
+                    total={cards.length}
+                    activeIndex={activeIndex}
+                  />
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
 
         {/* Floating Interaction Buttons */}
         {cards.length > 0 && (
           <div className="fixed bottom-28 flex justify-center items-center gap-6 w-full z-40 pointer-events-none">
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => removeCard(cards[activeIndex].id, "nope")}
-              className="pointer-events-auto w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center text-error border-4 border-error/10 active:scale-90 transition-all duration-150"
+              className="pointer-events-auto w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center text-error border-4 border-error/10 transition-colors"
             >
               <X className="w-8 h-8" strokeWidth={3} />
-            </button>
-            <button className="pointer-events-auto w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center text-tertiary active:scale-90 transition-all duration-150">
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="pointer-events-auto w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center text-tertiary transition-colors"
+            >
               <Zap className="w-6 h-6 fill-current" />
-            </button>
-            <button 
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => removeCard(cards[activeIndex].id, "like")}
-              className="pointer-events-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary-container shadow-lg flex items-center justify-center text-on-primary active:scale-90 transition-all duration-150"
+              className="pointer-events-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary-container shadow-lg flex items-center justify-center text-on-primary transition-colors"
             >
               <Heart className="w-8 h-8 fill-current" />
-            </button>
+            </motion.button>
           </div>
         )}
       </main>
@@ -82,25 +97,29 @@ interface SwipeCardProps {
   onRemove: (action: "like" | "nope") => void;
   index: number;
   total: number;
+  activeIndex: number;
 }
 
-function SwipeCard({ room, isFront, onRemove, index, total }: SwipeCardProps) {
+function SwipeCard({ room, isFront, onRemove, index, total, activeIndex }: SwipeCardProps) {
   const navigate = useNavigate();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
-  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
   
-  // Stamps opacity
+  // Stamps and overlays
   const likeOpacity = useTransform(x, [20, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-20, -100], [0, 1]);
+  
+  const likeOverlayOpacity = useTransform(x, [0, 150], [0, 0.4]);
+  const nopeOverlayOpacity = useTransform(x, [0, -150], [0, 0.4]);
 
   // Background cards scaling and positioning
-  const isSecond = index === total - 2;
-  const scale = isFront ? 1 : isSecond ? 0.95 : 0.9;
-  const yOffset = isFront ? 0 : isSecond ? 16 : 32;
+  const positionFromFront = activeIndex - index;
+  const scale = isFront ? 1 : Math.max(0, 1 - positionFromFront * 0.05);
+  const yOffset = isFront ? 0 : positionFromFront * 12;
+  const opacity = isFront ? 1 : Math.max(0, 1 - positionFromFront * 0.3);
 
   const handleDragEnd = (_e: any, info: PanInfo) => {
-    const threshold = 100;
+    const threshold = 120;
     if (info.offset.x > threshold) {
       onRemove("like");
     } else if (info.offset.x < -threshold) {
@@ -110,20 +129,31 @@ function SwipeCard({ room, isFront, onRemove, index, total }: SwipeCardProps) {
 
   return (
     <motion.div
-      className="absolute inset-0 bg-surface-lowest rounded-2xl shadow-[0_20px_50px_rgba(74,37,6,0.12)] origin-bottom"
+      className="absolute inset-0 bg-surface-lowest rounded-2xl editorial-shadow origin-bottom"
       style={{
         x: isFront ? x : 0,
         rotate: isFront ? rotate : 0,
-        scale,
-        y: yOffset,
         zIndex: index,
+        opacity,
       }}
       drag={isFront ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={handleDragEnd}
-      whileTap={{ cursor: "grabbing" }}
-      animate={{ scale, y: yOffset }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      whileTap={isFront ? { cursor: "grabbing", scale: 1.02 } : {}}
+      animate={{ 
+        scale, 
+        y: yOffset,
+        opacity,
+      }}
+      exit={{ 
+        x: x.get() > 0 ? 1000 : (x.get() < 0 ? -1000 : (Math.random() > 0.5 ? 1000 : -1000)), 
+        opacity: 0,
+        scale: 0.5,
+        rotate: x.get() > 0 ? 20 : -20,
+        transition: { duration: 0.4, ease: "easeIn" }
+      }}
+      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
     >
       <div className="relative h-full w-full rounded-2xl overflow-hidden cursor-grab active:cursor-grabbing">
         <img
@@ -132,20 +162,34 @@ function SwipeCard({ room, isFront, onRemove, index, total }: SwipeCardProps) {
           className="w-full h-full object-cover brightness-90 pointer-events-none"
         />
         
+        {/* Color Overlays */}
+        {isFront && (
+          <>
+            <motion.div 
+              style={{ opacity: likeOverlayOpacity }}
+              className="absolute inset-0 bg-primary pointer-events-none z-10"
+            />
+            <motion.div 
+              style={{ opacity: nopeOverlayOpacity }}
+              className="absolute inset-0 bg-error pointer-events-none z-10"
+            />
+          </>
+        )}
+
         {/* Editorial Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-on-surface/80 via-on-surface/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-on-surface/80 via-on-surface/20 to-transparent pointer-events-none z-10" />
 
         {/* Stamps */}
         {isFront && (
           <>
             <motion.div
-              style={{ opacity: nopeOpacity }}
+              style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1]) }}
               className="absolute top-12 right-8 z-20 pointer-events-none"
             >
               <div className="nope-stamp text-5xl md:text-6xl">NOPE</div>
             </motion.div>
             <motion.div
-              style={{ opacity: likeOpacity }}
+              style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1]) }}
               className="absolute top-12 left-8 z-20 pointer-events-none"
             >
               <div className="like-stamp text-5xl md:text-6xl">LIKE</div>

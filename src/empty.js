@@ -1,0 +1,11 @@
+console.log('Empty polyfill loaded');
+const empty = () => {};
+empty.FormData = class {};
+empty.Headers = class {};
+empty.Request = class {};
+empty.Response = class {};
+export default empty;
+export const FormData = empty.FormData;
+export const Headers = empty.Headers;
+export const Request = empty.Request;
+export const Response = empty.Response;
